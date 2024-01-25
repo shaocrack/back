@@ -36,12 +36,13 @@ def createUser():
 def getUsers():
     users = []
     for doc in db.find():
-        users.append({
+        user_data = {
             '_id': str(ObjectId(doc['_id'])),
-            'name': doc['name'],
-            'email': doc['email'],
-            'password': doc['password']
-        })
+            'name': doc.get('name', ''),
+            'email': doc.get('email', ''),
+            'password': doc.get('password', '')
+        }
+        users.append(user_data)
     return jsonify(users)
 # Función para obtener un usuario por ID
 @app.route('/user/<id>', methods=['GET'])
