@@ -2,7 +2,10 @@ from flask import Flask,request,jsonify
 from flask_pymongo import PyMongo,ObjectId
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
-#para evitar el cors de node 
+from datetime import datetime
+import pytz
+
+
 
 app = Flask(__name__)
 app.config['MONGO_URI']='mongodb://localhost/pythonreactdb'
@@ -11,8 +14,13 @@ db=mongo.db.users
 auth_db = mongo.db.auth
 tarjeta_db=mongo.db.tarjeta
 compras_db = mongo.db.compras
+compras_anomalas_db= mongo.db.compras_Anomalas
+servicios_db= mongo.db.servicios
+
+
 #para evitar el cors de node
 bcrypt = Bcrypt(app) 
+#para evitar el cors de node 
 CORS(app)
 # ruta
 @app.route('/users', methods=['POST'])
@@ -28,9 +36,7 @@ def createUser():
         return jsonify(str(result.inserted_id))
         #return 'received'
     except KeyError as e:
-        return jsonify({'error': f'Missing key: {str(e)}'}), 400
-
-    
+        return jsonify({'error': f'Missing key: {str(e)}'}), 400  
 # Función para listar usuarios
 @app.route('/users', methods=['GET'])
 def getUsers():
@@ -170,28 +176,80 @@ def consultar_tarjeta(numero_tarjeta):
     
 #PAGOS
 # Ruta para crear una compra
+# @app.route('/compras', methods=['POST'])
+# def createCompra():
+#     try:
+#         # Obtener los datos de la solicitud
+#         data = request.json
+
+#         # Obtener la fecha y hora actual
+#         fecha_hora_pago = datetime.datetime.utcnow()
+
+#         # Obtener la dirección IP del cliente
+#         direccion_ip = request.remote_addr
+
+#         # Guardar la compra en la colección "compras" junto con la fecha, hora y dirección IP
+#         compras_db = mongo.db.compras
+#         result = compras_db.insert_one({
+#             'tarjeta': data.get('tarjeta', ''),
+#             'productos': data.get('productos', []),
+#             'total': data.get('total', 0),
+#             'fecha_hora_pago': fecha_hora_pago,
+#             'direccion_ip': direccion_ip,
+#             # Puedes agregar otros campos necesarios
+#         })
+
+#         # Respondemos con el ID de la compra creada
+#         return jsonify({'message': 'Compra realizada con éxito', 'compra_id': str(result.inserted_id)})
+
+#     except Exception as e:
+#         # Manejar errores
+#         return jsonify({'error': str(e)}), 500
+
 @app.route('/compras', methods=['POST'])
 def createCompra():
     try:
-        # Obtener los datos de la solicitud
         data = request.json
-
-        # Guardar la compra en la colección "compras"
-        compras_db = mongo.db.compras
-        result = compras_db.insert_one({
-            'tarjeta': data.get('tarjeta', ''),  # Asegúrate de obtener 'tarjeta' del objeto 'data'
-            'productos': data.get('productos', []),  # Asegúrate de obtener 'productos' del objeto 'data'
-            'total': data.get('total', 0),  # Asegúrate de obtener 'total' del objeto 'data'
-            # Puedes agregar otros campos necesarios
+        zona_horaria_local = pytz.timezone('America/Guayaquil')  # Reemplaza con tu zona horaria local
+        fecha_hora_pago = datetime.now(zona_horaria_local)
+        direccion_ip = '138.199.50.102'
+       # direccion_ip = request.remote_addr
+        compras_anomalas_db = mongo.db.compras_Anomalas
+        result = compras_anomalas_db.insert_one({
+            'tarjeta': data.get('tarjeta', ''),
+            'productos': data.get('productos', []),
+            'total': data.get('total', 0),
+            'fecha_hora_pago': fecha_hora_pago.strftime("%Y-%m-%d %H:%M:%S %p"),
+            'direccion_ip': direccion_ip,
+            'lugar': data.get('lugar', ''),
         })
-
-        # Respondemos con el ID de la compra creada
         return jsonify({'message': 'Compra realizada con éxito', 'compra_id': str(result.inserted_id)})
-        #return jsonify({'message': 'Compra realizada con éxito', 'compra_id': str(result.inserted_id)})
-
     except Exception as e:
-        # Manejar errores
         return jsonify({'error': str(e)}), 500
+    
+###########################mirara###########
+# @app.route('/compras', methods=['POST'])
+# def createCompra():
+#     try:
+#         # Obtener los datos de la solicitud
+#         data = request.json
+
+#         # Guardar la compra en la colección "compras"
+#         compras_db = mongo.db.compras
+#         result = compras_db.insert_one({
+#             'tarjeta': data.get('tarjeta', ''),  # Asegúrate de obtener 'tarjeta' del objeto 'data'
+#             'productos': data.get('productos', []),  # Asegúrate de obtener 'productos' del objeto 'data'
+#             'total': data.get('total', 0),  # Asegúrate de obtener 'total' del objeto 'data'
+#             # Puedes agregar otros campos necesarios
+#         })
+
+#         # Respondemos con el ID de la compra creada
+#         return jsonify({'message': 'Compra realizada con éxito', 'compra_id': str(result.inserted_id)})
+#         #return jsonify({'message': 'Compra realizada con éxito', 'compra_id': str(result.inserted_id)})
+
+#     except Exception as e:
+#         # Manejar errores
+#         return jsonify({'error': str(e)}), 500
 # @app.route('/compras', methods=['POST'])
 # def createCompra():
 #     try:
@@ -213,5 +271,34 @@ def createCompra():
 #     except Exception as e:
 #         # Manejar errores
 #         return jsonify({'error': str(e)}), 500
+#servicios
+# Ruta para procesar el pago de servicios
+# Ruta para procesar el pago de servicios
+@app.route('/servicios/pagar', methods=['POST'])
+def procesar_pago_servicio():
+    try:
+        # Obtener los datos del pago desde la solicitud
+        data = request.json
+
+        # Guardar los detalles del pago en la colección "servicios"
+        servicios_db = mongo.db.servicios
+        result = servicios_db.insert_one({
+            'servicio': data['servicio'],
+            'monto': data['monto'],
+            'codigo_pago': data['codigoPago'],  # Guardar el código de pago
+            'nombre': data['nombre'],
+            'cedula': data['cedula'],
+            'fecha_pago': data['fechaPago'],
+            'ip_pago': data['ipPago'],
+            
+        })
+
+        # Responder con un mensaje de éxito
+        return jsonify({'message': 'Pago procesado correctamente', 'pago_id': str(result.inserted_id)})
+    except Exception as e:
+        # Manejar errores
+        return jsonify({'error': str(e)}), 500
+
+    
 if __name__ == "__main__":
     app.run(debug=True)
